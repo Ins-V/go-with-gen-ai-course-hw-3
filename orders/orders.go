@@ -1,40 +1,38 @@
-// Package orders реалізує Розділ 2 домашньої роботи: рефакторинг
-// OrderService через виокремлення мінімального інтерфейсу OrderStore
-// та впровадження залежності через конструктор.
+// Package orders implements Section 2 of the homework: OrderService is
+// refactored so that its only database dependency is the minimal
+// OrderStore interface, injected through the constructor.
 //
-// Саме цей пакет ви й попросите ШІ-асистента рефакторити (Розділ 2)
-// та покрити тестами (Розділ 3, Крок 2). Файл orders_test.go вже
-// містить автотести з фейковим store — використайте їх, щоб
-// перевірити свою реалізацію локально, а власний промпт і згенерований
-// ШІ тест додайте окремо (наприклад, у orders_ai_test.go) для звіту.
+// The interface is declared here, in the consumer package, not next to a
+// concrete database implementation.
 package orders
 
-// OrderStore — мінімальний інтерфейс для залежності від БД
-// (Завдання 2.1). Замінює прямий *sql.DB, дотримуючись приказки
-// Роба Пайка: "чим більший інтерфейс, тим слабша абстракція".
+// OrderStore is the minimal database dependency of OrderService.
+//
+// It holds exactly one method because PlaceOrder — the only behaviour of
+// the service — issues a single INSERT and needs nothing but the error it
+// returns; every other capability of *sql.DB (Query, QueryRow, Begin,
+// Prepare, Close, PingContext, ...) is unused by this package and would
+// only weaken the abstraction.
 type OrderStore interface {
+	// Exec runs a write query with the given arguments and reports failure.
 	Exec(query string, args ...any) error
 }
 
-// OrderService — Завдання 2.2: сервіс приймає залежність через
-// конструктор (dependency injection), а не створює її сам.
+// OrderService places orders through an injected OrderStore.
 type OrderService struct {
 	store OrderStore
 }
 
-// NewOrderService — конструктор із впровадженням залежності.
+// NewOrderService returns an OrderService backed by store.
 func NewOrderService(store OrderStore) *OrderService {
 	return &OrderService{store: store}
 }
 
-// PlaceOrder виконує вставку замовлення через store.
-//
-// TODO (Завдання 2.2): реалізуйте цей метод.
-//   - викличте s.store.Exec(...) із SQL-запитом і аргументами
-//     orderID та amount;
-//   - поверніть помилку, якщо Exec її повернув;
-//   - інакше поверніть nil.
+// PlaceOrder inserts the order identified by orderID with the given
+// amount. It returns the store error unchanged, or nil on success.
 func (s *OrderService) PlaceOrder(orderID string, amount float64) error {
-	// TODO: ваш код тут
-	return nil
+	return s.store.Exec(
+		"INSERT INTO orders (id, amount) VALUES (?, ?)",
+		orderID, amount,
+	)
 }
